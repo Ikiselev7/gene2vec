@@ -1,0 +1,8 @@
+md5: 8edf7257294ecd86a34045a42b753f12
+wdir: .
+outs:
+- md5: 47bd1e17be1e4e689ae007841472eb13.dir
+  path: dna2vec_models
+  cache: true
+  metric: false
+  persist: false
