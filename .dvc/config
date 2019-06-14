@@ -1,0 +1,5 @@
+
+['remote "gsremote"']
+url = gs://geneembeddings/dvc
+[core]
+remote = gsremote
