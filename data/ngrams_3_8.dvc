@@ -1,0 +1,8 @@
+md5: 2e976182e430f06201d2d91a50d75fed
+wdir: .
+outs:
+- md5: 76dc26fbc214639462ed32461b820ebd.dir
+  path: ngrams_3_8
+  cache: true
+  metric: false
+  persist: false
