@@ -1,0 +1,8 @@
+md5: 5ef6a42de61418d4c87ff8758c3bc416
+wdir: .
+outs:
+- md5: 0ac74772536fa0f2147717dc2e315f13.dir
+  path: util_data
+  cache: true
+  metric: false
+  persist: false

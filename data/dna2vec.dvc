@@ -1,7 +1,7 @@
-md5: 850d126f00d9212e58afeb4968c7654c
+md5: ff6b996baae7edd991fc11c30971c5c2
 wdir: .
 outs:
-- md5: 12c3facb5230232c96deefe8f4b5d8a2.dir
+- md5: d24e4b08352bcd7c378495448e76de10.dir
   path: dna2vec
   cache: true
   metric: false
