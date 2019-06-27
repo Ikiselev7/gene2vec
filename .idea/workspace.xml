@@ -2,8 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="0379cb9a-0e05-4495-bd51-b3a4c5d54035" name="Default Changelist" comment="">
+<<<<<<< HEAD
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/install_pycogent3.sh" beforeDir="false" afterPath="$PROJECT_DIR$/install_pycogent3.sh" afterDir="false" />
+=======
+      <change beforePath="$PROJECT_DIR$/Pipfile.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Pipfile.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/metrics.py" afterDir="false" />
+>>>>>>> a928192c3d8922c4e5a7c80c71bc073069d36e7b
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -16,7 +22,11 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/metrics.py">
           <provider selected="true" editor-type-id="text-editor">
+<<<<<<< HEAD
             <state relative-caret-position="4148">
+=======
+            <state relative-caret-position="557">
+>>>>>>> a928192c3d8922c4e5a7c80c71bc073069d36e7b
               <caret line="244" lean-forward="true" selection-start-line="244" selection-end-line="244" />
               <folding>
                 <element signature="e#0#34#0" expanded="true" />
@@ -25,6 +35,7 @@
           </provider>
         </entry>
       </file>
+<<<<<<< HEAD
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/install_pycogent3.sh">
           <provider selected="true" editor-type-id="text-editor">
@@ -34,6 +45,8 @@
           </provider>
         </entry>
       </file>
+=======
+>>>>>>> a928192c3d8922c4e5a7c80c71bc073069d36e7b
     </leaf>
   </component>
   <component name="FindInProjectRecents">
@@ -50,9 +63,15 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
+<<<<<<< HEAD
         <option value="$PROJECT_DIR$/README.md" />
         <option value="$PROJECT_DIR$/metrics.py" />
         <option value="$PROJECT_DIR$/install_pycogent3.sh" />
+=======
+        <option value="$PROJECT_DIR$/install_pycogent3.sh" />
+        <option value="$PROJECT_DIR$/README.md" />
+        <option value="$PROJECT_DIR$/metrics.py" />
+>>>>>>> a928192c3d8922c4e5a7c80c71bc073069d36e7b
       </list>
     </option>
   </component>
@@ -90,7 +109,10 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
+<<<<<<< HEAD
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+=======
+>>>>>>> a928192c3d8922c4e5a7c80c71bc073069d36e7b
     <property name="last_opened_file_path" value="$PROJECT_DIR$/Pipfile" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyIntegratedToolsModulesConfigurable" />
   </component>
@@ -175,6 +197,16 @@
     </layout>
   </component>
   <component name="editorHistoryManager">
+<<<<<<< HEAD
+=======
+    <entry file="file://$PROJECT_DIR$/install_pycogent3.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="51">
+          <caret line="3" selection-start-line="3" selection-end-line="3" />
+        </state>
+      </provider>
+    </entry>
+>>>>>>> a928192c3d8922c4e5a7c80c71bc073069d36e7b
     <entry file="file://$PROJECT_DIR$/README.md">
       <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
         <state split_layout="SPLIT">
@@ -191,6 +223,7 @@
     <entry file="file://$PROJECT_DIR$/Pipfile.lock">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
+<<<<<<< HEAD
     <entry file="file://$PROJECT_DIR$/install_pycogent3.sh">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="68">
@@ -201,6 +234,11 @@
     <entry file="file://$PROJECT_DIR$/metrics.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4148">
+=======
+    <entry file="file://$PROJECT_DIR$/metrics.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="557">
+>>>>>>> a928192c3d8922c4e5a7c80c71bc073069d36e7b
           <caret line="244" lean-forward="true" selection-start-line="244" selection-end-line="244" />
           <folding>
             <element signature="e#0#34#0" expanded="true" />
