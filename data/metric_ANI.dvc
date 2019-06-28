@@ -1,0 +1,8 @@
+md5: 9f1213b10fcc74fdf5d54f58d92a9ad1
+wdir: ..
+outs:
+- md5: 46f299d3e008ca0dc4490fd63666ca03.dir
+  path: data/metric_ANI
+  cache: true
+  metric: false
+  persist: false
