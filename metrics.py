@@ -31,6 +31,11 @@ def create_folder(folder_path):
         os.mkdir(folder_path)
 
 
+def divide_chunks(l, n):
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
 def get_model(model_name):
     """
     Getting appropriate model object from cogent3.evolve.models by name
@@ -56,6 +61,17 @@ def csv_to_fasta():
 
     SeqIO.write(records, '{}/all_genes.fasta'.format(DATA_FOLDER), 'fasta')
     return records
+
+
+def split_alignments():
+    for align in alignments:
+        records = list(SeqIO.parse('{}/all_genes_{}.fasta'.format(DATA_FOLDER, align), 'fasta'))
+        records_chunks = list(divide_chunks(records, 82))
+
+        create_folder('{}/chunks'.format(DATA_FOLDER))
+
+        for idx, chunk in enumerate(records_chunks):
+            SeqIO.write(chunk, '{}/chunks/all_genes_{}_{}.fasta'.format(DATA_FOLDER, align, idx), 'fasta')
 
 
 def cosine_similarities(vectors):
@@ -94,31 +110,37 @@ def cosine_and_euclidean_vectors_calculation():
     euc_proc.join()
 
 
-def dist_dense(align, model_name):
-    al = LoadSeqs('{}/all_genes_{}.fasta'.format(DATA_FOLDER, align))
+def dist_distances_chunk_main_diagonal(align, model_name, idx):
+    al = LoadSeqs('{}/chunks/all_genes_{}_{}.fasta'.format(DATA_FOLDER, align, idx))
 
     d = distance.EstimateDistances(al, submodel=get_model(model_name))
     d.run()
 
-    create_folder('{}/dense/{}'.format(DATA_FOLDER, align))
+    create_folder('{}/distances/{}'.format(DATA_FOLDER, align))
 
-    with open('{}/dense/{}/{}_tmp.txt'.format(DATA_FOLDER, align, model_name), 'w') as f:
+    # Format output from EstimateDistances() using pandas with temporary file
+    temp_file_name = '{}/distances/{}/{}/{}_tmp.txt'.format(DATA_FOLDER, align, model_name, idx)
+    with open(temp_file_name, 'w') as f:
         f.write(d.__str__())
-    tmp = pd.read_csv('{}/dense/{}/{}_tmp.txt'.format(DATA_FOLDER, align, model_name), engine='python',
+    tmp = pd.read_csv(temp_file_name, engine='python',
                       delim_whitespace=True, skiprows=3, header=None,
                       index_col=None, skipfooter=1).iloc[:, 1:]
+    os.remove(temp_file_name)
 
-    os.remove('{}/dense/{}/{}_tmp.txt'.format(DATA_FOLDER, align, model_name))
+    tmp.to_csv('{}/distances/{}_{}_{}.tsv'.format(DATA_FOLDER, align, model_name, idx),
+               sep='\t', header=None, index=False)
 
-    tmp.to_csv('{}/dense/{}/{}.tsv'.format(DATA_FOLDER, align, model_name), sep='\t', header=None, index=False)
 
-
-def dist_dense_mp():
-    create_folder('{}/dense'.format(DATA_FOLDER))
+def dist_mp():
+    create_folder('{}/distances'.format(DATA_FOLDER))
 
     pool = mp.Pool(mp.cpu_count())
-    combs = list(itertools.product(alignments, selected_models))
-    pool.starmap_async(dist_dense, [(align, model_name) for align, model_name in combs]).get(99999)
+    combs = list(itertools.product(alignments, selected_models, range(13)))
+    # Calculate distances on main diagonal
+    pool.starmap_async(dist_distances_chunk_main_diagonal,
+                       [(align, model_name, idx) for align, model_name, idx in combs]).get(99999)
+    # TODO Calculate distances in other places
+    # TODO Concatenate all chunks
 
 
 def correlation():
@@ -127,7 +149,7 @@ def correlation():
             with open('correlation_{}.txt'.format(model_name), 'w') as out_file:
                 # Get rid of * symbol after pycogent3's EstimateDistances() method call on main diagonal
                 # using list comprehensions and calculate correlation
-                evolution_distances = [0 if x == '*' else float(x) for x in pd.read_csv('{}/dense/{}/{}.tsv'
+                evolution_distances = [0 if x == '*' else float(x) for x in pd.read_csv('{}/distances/{}/{}.tsv'
                                                                   .format(DATA_FOLDER,
                                                                           align,
                                                                           model_name),
@@ -155,8 +177,11 @@ def main(args):
     if args.format:
         csv_to_fasta()
 
-    if args.dense:
-        dist_dense_mp()
+    if args.split:
+        split_alignments()
+
+    if args.distances:
+        dist_mp()
 
     if args.correlation:
         correlation()
@@ -169,6 +194,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-f', '--format', action='store_true', help='convert all_genes.csv -> all_genes.fasta')
+    parser.add_argument('-s', '--split', action='store_true', help='split alignments in to chunks')
     parser.add_argument('-d', '--distances', action='store_true', help='calculate distances using pycogent3')
     parser.add_argument('-v', '--vectors', action='store_true',
                         help='calculate cosine similarity, and euclidean distances')
