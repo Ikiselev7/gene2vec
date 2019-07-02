@@ -70,8 +70,13 @@ def split_alignments():
 
         create_folder('{}/chunks'.format(DATA_FOLDER))
 
-        for idx, chunk in enumerate(records_chunks):
-            SeqIO.write(chunk, '{}/chunks/all_genes_{}_{}.fasta'.format(DATA_FOLDER, align, idx), 'fasta')
+        for idx_r in range(13):
+            for idx_c in range(idx_r, 13):
+                file_name = '{}/chunks/all_genes_{}_{}_{}.fasta'.format(DATA_FOLDER, align, idx_r, idx_c)
+                if idx_r != idx_c:
+                    SeqIO.write(records_chunks[idx_r] + records_chunks[idx_c], file_name, 'fasta')
+                else:
+                    SeqIO.write(records_chunks[idx_r], file_name, 'fasta')
 
 
 def cosine_similarities(vectors):
@@ -110,8 +115,8 @@ def cosine_and_euclidean_vectors_calculation():
     euc_proc.join()
 
 
-def dist_distances_chunk_main_diagonal(align, model_name, idx):
-    al = LoadSeqs('{}/chunks/all_genes_{}_{}.fasta'.format(DATA_FOLDER, align, idx))
+def distances_chunks(align, model_name, idx_r, idx_c):
+    al = LoadSeqs('{}/chunks/all_genes_{}_{}_{}.fasta'.format(DATA_FOLDER, align, idx_r, idx_c))
 
     d = distance.EstimateDistances(al, submodel=get_model(model_name))
     d.run()
@@ -119,7 +124,7 @@ def dist_distances_chunk_main_diagonal(align, model_name, idx):
     create_folder('{}/distances/{}'.format(DATA_FOLDER, align))
 
     # Format output from EstimateDistances() using pandas with temporary file
-    temp_file_name = '{}/distances/{}/{}/{}_tmp.txt'.format(DATA_FOLDER, align, model_name, idx)
+    temp_file_name = '{}/distances/{}/{}_{}_{}_tmp.txt'.format(DATA_FOLDER, align, model_name, idx_r, idx_c)
     with open(temp_file_name, 'w') as f:
         f.write(d.__str__())
     tmp = pd.read_csv(temp_file_name, engine='python',
@@ -127,20 +132,30 @@ def dist_distances_chunk_main_diagonal(align, model_name, idx):
                       index_col=None, skipfooter=1).iloc[:, 1:]
     os.remove(temp_file_name)
 
-    tmp.to_csv('{}/distances/{}_{}_{}.tsv'.format(DATA_FOLDER, align, model_name, idx),
+    tmp.to_csv('{}/distances/{}/{}_{}_{}.tsv'.format(DATA_FOLDER, align, model_name, idx_r, idx_c),
                sep='\t', header=None, index=False)
+
+
+def distances_chunks_concatenate():
+    pass
 
 
 def dist_mp():
     create_folder('{}/distances'.format(DATA_FOLDER))
 
     pool = mp.Pool(mp.cpu_count())
-    combs = list(itertools.product(alignments, selected_models, range(13)))
-    # Calculate distances on main diagonal
-    pool.starmap_async(dist_distances_chunk_main_diagonal,
-                       [(align, model_name, idx) for align, model_name, idx in combs]).get(99999)
-    # TODO Calculate distances in other places
-    # TODO Concatenate all chunks
+
+    # combs = list(itertools.product(alignments, selected_models, range(3), range(3)))
+    combs = []
+    for align in alignments:
+        for model in selected_models:
+            for idx_r in range(2):
+                for idx_c in range(idx_r, 2):
+                    combs.append((align, model, idx_r, idx_c, ))
+
+    pool.starmap_async(distances_chunks,
+                       [(align, model_name, idx_r, idx_c) for align, model_name, idx_r, idx_c in combs]).get(99999)
+    distances_chunks_concatenate()
 
 
 def correlation():
@@ -222,4 +237,5 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    main(parse_args())
+    args = parse_args()
+    main(args)
