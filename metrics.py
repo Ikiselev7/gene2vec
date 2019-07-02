@@ -16,14 +16,16 @@ from Bio.SeqRecord import SeqRecord
 
 # Don't know what the ssGN and GN models are
 # Full list of models: ['JC69', 'K80', 'F81', 'HKY85', 'TN93', 'GTR', 'ssGN', 'GN']
-models_names = models.nucleotide_models[:-2]
+MODELS_NAMES = models.nucleotide_models[:-2]
+selected_models = []
 
 # Muscle and clustal alignments don't keep order
 # alignments = ['muscle', 'mafft', 'clustal']
 alignments = ['mafft']
 
 DIM = 1066
-DATA_FOLDER = 'DIM_data'
+DATA_FOLDER = '1066_data'
+
 
 def get_model(model_name):
     """
@@ -61,7 +63,7 @@ def vectors():
     """
     Calculate cosine similarities, cosine and Euclidean distances using 2 processes
     """
-    vectors = pd.read_csv('{}/genes_vec_8grams_DIM_genes.tsv'.format(DATA_FOLDER), sep='\t', header=None,
+    vectors = pd.read_csv('{}/genes_vec_8grams_1066_genes.tsv'.format(DATA_FOLDER), sep='\t', header=None,
                           index_col=None)
 
     cos_proc = mp.Process(target=cos, args=(vectors,))
@@ -127,11 +129,11 @@ def dist_sparse_mp(records):
 
     pool = mp.Pool(mp.cpu_count())
     pool.starmap_async(calc_dist_sparse,
-                       [(model_name, records) for model_name in models_names]).get(99999)
+                       [(model_name, records) for model_name in selected_models]).get(99999)
 
 
 def dist_dense(align, model_name):
-    al = LoadSeqs('{}/all_genes_{}_test.fasta'.format(DATA_FOLDER, align))
+    al = LoadSeqs('{}/all_genes_{}.fasta'.format(DATA_FOLDER, align))
 
     d = distance.EstimateDistances(al, submodel=get_model(model_name))
     d.run()
@@ -154,13 +156,13 @@ def dist_dense_mp():
         os.mkdir('{}/dense'.format(DATA_FOLDER))
 
     pool = mp.Pool(mp.cpu_count())
-    combs = list(itertools.product(alignments, models_names))
+    combs = list(itertools.product(alignments, selected_models))
     pool.starmap_async(dist_dense, [(align, model_name) for align, model_name in combs]).get(99999)
 
 
 def correlation():
     for align in alignments:
-        for model_name in models_names:
+        for model_name in selected_models:
             with open('correlation_{}.txt'.format(model_name), 'w') as out_file:
                 # Get rid of * symbol after pycogent3's EstimateDistances() method call on main diagonal
                 # using list comprehensions and calculate correlation
@@ -208,7 +210,9 @@ def main(args):
 
 
 def parse_args():
-    global models_names
+    global MODELS_NAMES
+    global selected_models
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-f', '--format', action='store_true', help='convert all_genes.csv -> all_genes.fasta')
@@ -219,7 +223,7 @@ def parse_args():
     parser.add_argument('-c', '--correlation', action='store_true',
                         help='calculate correlation between: cosine [similarity, euclidean and cosine distances] '
                              'and [models of DNA evolution metrics]')
-    parser.add_argument('-m', '--models', type=str, default=models_names, nargs='+',
+    parser.add_argument('-m', '--models', type=str, nargs='+',
                         help='list your models;\n'
                              'JC69:     Jukes and Cantor 1969;\n'
                              'K80:      Kimura 1980;\n'
@@ -231,12 +235,11 @@ def parse_args():
     args = parser.parse_args()
 
     if args.models:
-        models_from_args = []
         for model in args.models[0].split(','):
-            if model.upper() in models_names:
-                models_from_args.append(model)
-        models_names = models_from_args
-
+            if model.upper() in MODELS_NAMES:
+                selected_models.append(model)
+    else:
+        selected_models = MODELS_NAMES.copy()
     return args
 
 
