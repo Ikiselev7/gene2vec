@@ -6,12 +6,10 @@ Commands for script:
 
 `-v --vectors`: Calculate cosine similarity, cosine and Euclidean distances
 
-`-s --sparse`: Calculate distances spare
-
-`-d --dense`: Calculate distances dense
+`-d --distances`: Calculate distances using [pycogent3](https://cogent3.readthedocs.io/en/latest/)
 
 `-c --correlation`: Calculate correlation
 
-Installing [pycogent3](https://cogent3.readthedocs.io/en/latest/install.html):
+[Installation pycogent3](https://cogent3.readthedocs.io/en/latest/install.html):
 
 run: `./install_pycogent3.sh`
