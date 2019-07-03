@@ -137,7 +137,36 @@ def distances_chunks(align, model_name, idx_r, idx_c):
 
 
 def distances_chunks_concatenate():
-    pass
+    for align in alignments:
+        for model in selected_models:
+            path = '{}/distances/{}/'.format(DATA_FOLDER, align)
+            files = os.listdir(path)
+
+            def get_r_index(file_name): return int(file_name.split('_')[2].split('.')[0])
+            def get_c_index(file_name): return int(file_name.split('_')[1])
+
+            files = sorted(files, key=get_r_index)
+            files = sorted(files, key=get_c_index)
+
+            meta_array = list()
+
+            for file in files:
+                if get_r_index(file) == get_c_index(file):
+                    meta_array.append(pd.read_csv('{}/distances/{}/{}'.format(DATA_FOLDER, align, file),
+                                                  header=None, sep='\t').to_numpy())
+                else:
+                    tmp_arr = pd.read_csv('{}/distances/{}/{}'.format(DATA_FOLDER, align, file),
+                                          header=None, sep='\t').to_numpy()
+
+                    final_arr = np.zeros([82, 82])
+
+                    for r in range(82):
+                        for c in range(82):
+                            tmp_val = tmp_arr[r][c + 82]
+                            final_arr[r][c] = tmp_val
+
+                    meta_array.append(final_arr)
+            # TODO Concatenate arrays
 
 
 def dist_mp():
@@ -151,7 +180,7 @@ def dist_mp():
         for model in selected_models:
             for idx_r in range(2):
                 for idx_c in range(idx_r, 2):
-                    combs.append((align, model, idx_r, idx_c, ))
+                    combs.append((align, model, idx_r, idx_c,))
 
     pool.starmap_async(distances_chunks,
                        [(align, model_name, idx_r, idx_c) for align, model_name, idx_r, idx_c in combs]).get(99999)
@@ -165,19 +194,19 @@ def correlation():
                 # Get rid of * symbol after pycogent3's EstimateDistances() method call on main diagonal
                 # using list comprehensions and calculate correlation
                 evolution_distances = [0 if x == '*' else float(x) for x in pd.read_csv('{}/distances/{}/{}.tsv'
-                                                                  .format(DATA_FOLDER,
-                                                                          align,
-                                                                          model_name),
-                                                                  sep='\t', header=None,
-                                                                  index_col=None).values.flatten()]
+                                                                                        .format(DATA_FOLDER,
+                                                                                                align,
+                                                                                                model_name),
+                                                                                        sep='\t', header=None,
+                                                                                        index_col=None).values.flatten()]
 
                 data_frame_distances_euc = pd.read_csv('{}/distances_euc.tsv'.format(DATA_FOLDER),
                                                        sep='\t', header=None, index_col=None)
-                similarities             = pd.read_csv('{}/similarities.tsv'.format(DATA_FOLDER),
-                                                       sep='\t', header=None, index_col=None)
+                similarities = pd.read_csv('{}/similarities.tsv'.format(DATA_FOLDER),
+                                           sep='\t', header=None, index_col=None)
 
-                correlations_euc = np.corrcoef(data_frame_distances_euc.values.flatten(),   evolution_distances)
-                correlations_sim = np.corrcoef(similarities.values.flatten(),               evolution_distances)
+                correlations_euc = np.corrcoef(data_frame_distances_euc.values.flatten(), evolution_distances)
+                correlations_sim = np.corrcoef(similarities.values.flatten(), evolution_distances)
 
                 out_file.write(str(correlations_euc))
                 out_file.write(str(correlations_sim))
@@ -238,4 +267,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    main(args)
+    distances_chunks_concatenate()
+    # main(args)
