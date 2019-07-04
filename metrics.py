@@ -24,12 +24,20 @@ alignments = ['mafft']
 DIM = 1066
 DATA_FOLDER = '1066_data'
 CHUNK_SIZE = 82
-CHUNK_NUM = DIM / CHUNK_SIZE
+CHUNK_NUM = DIM // CHUNK_SIZE
 
 
 def create_folder(folder_path):
     if not os.path.exists(folder_path):
         os.mkdir(folder_path)
+
+
+def read_tsv(path):
+    return pd.read_csv(path, sep='\t', header=None, index_col=None)
+
+
+def save_tsv(path, data):
+    np.savetxt(path, data, delimiter='\t')
 
 
 def divide_chunks(l, n):
@@ -50,7 +58,7 @@ def csv_to_fasta():
     """
     Format all_genes.csv to all_genes.fasta file
     """
-    all_genes_raw = pd.read_csv('{}/all_genes.csv'.format(DATA_FOLDER), sep='\t', header=None, index_col=None)
+    all_genes_raw = read_tsv('{}/all_genes.csv'.format(DATA_FOLDER))
     records = []
 
     for index, row in all_genes_raw.iterrows():
@@ -90,7 +98,7 @@ def cosine_similarities(vectors):
 
             similarities[idx_r][idx_c] = np.dot(row_a, row_b) / (np.linalg.norm(row_a) * np.linalg.norm(row_b))
 
-    np.savetxt('{}/cosine_similarities.tsv'.format(DATA_FOLDER), similarities, delimiter='\t')
+    save_tsv('{}/cosine_similarities.tsv'.format(DATA_FOLDER), similarities)
 
 
 def euclidean_distances(vectors):
@@ -103,15 +111,14 @@ def euclidean_distances(vectors):
 
             distances_euc[idx_r][idx_c] = np.sqrt(np.sum((row_a - row_b) ** 2))
 
-    np.savetxt('{}/distances_euc.tsv'.format(DATA_FOLDER), distances_euc, delimiter='\t')
+    save_tsv('{}/distances_euc.tsv'.format(DATA_FOLDER), distances_euc)
 
 
 def cosine_and_euclidean_vectors_calculation():
     """
     Calculate cosine similarities and Euclidean distances using 2 processes
     """
-    vectors = pd.read_csv('{}/genes_vec_8grams_1066_genes.tsv'.format(DATA_FOLDER), sep='\t', header=None,
-                          index_col=None)
+    vectors = read_tsv('{}/genes_vec_8grams_1066_genes.tsv'.format(DATA_FOLDER))
 
     cos_proc = mp.Process(target=cosine_similarities, args=(vectors,))
     euc_proc = mp.Process(target=euclidean_distances, args=(vectors,))
@@ -122,11 +129,14 @@ def cosine_and_euclidean_vectors_calculation():
 
 
 def format_array_after_dist_calc(path):
-    tmp_array = pd.read_csv(path, sep='\t', header=None, index_col=None)
-    final_array = np.zeros([CHUNK_SIZE, CHUNK_SIZE])
+    """
+    Get rid of * symbol on main diagonal after distance calculation and cast to float
+    """
+    tmp_array = read_tsv(path)
+    final_array = np.zeros(shape=tmp_array.shape)
 
-    for r in range(CHUNK_SIZE):
-        for c in range(CHUNK_SIZE):
+    for r in range(tmp_array.shape[0]):
+        for c in range(tmp_array.shape[0]):
             if tmp_array[r][c] == '*':
                 final_array[r][c] = 0
             else:
@@ -162,8 +172,11 @@ def distances_chunks_concatenate():
             path = '{}/distances/{}/'.format(DATA_FOLDER, align)
             files = os.listdir(path)
 
-            def get_r_index(file_name): return int(file_name.split('_')[2].split('.')[0])
-            def get_c_index(file_name): return int(file_name.split('_')[1])
+            def get_r_index(file_name):
+                return int(file_name.split('_')[2].split('.')[0])
+
+            def get_c_index(file_name):
+                return int(file_name.split('_')[1])
 
             files = sorted(files, key=get_r_index)
             files = sorted(files, key=get_c_index)
@@ -177,29 +190,21 @@ def distances_chunks_concatenate():
                 r = get_r_index(file)
                 c = get_c_index(file)
 
+                tmp_array = format_array_after_dist_calc('{}/distances/{}/{}'
+                                                         .format(DATA_FOLDER, align, file))
+
                 # If chunk on main diagonal just copy values
                 if r == c:
-                    tmp_array = format_array_after_dist_calc('{}/distances/{}/{}'
-                                                             .format(DATA_FOLDER, align, file))
+
                     for r_idx in range(CHUNK_SIZE):
                         for c_idx in range(CHUNK_SIZE):
-                            final_array[r_idx + CHUNK_SIZE*r][c_idx + CHUNK_SIZE*c] = tmp_array[r_idx][c_idx]
+                            final_array[r_idx + CHUNK_SIZE * r][c_idx + CHUNK_SIZE * c] = tmp_array[r_idx][c_idx]
 
                 # 1) Extract values from 1 quarter
                 # 2) Place them using files idx
                 # 3) Transpose matrix\ndarray | swap r and c indexes
                 # 4) Place them using reverse idx
                 else:
-                    tmp_array = pd.read_csv('{}/distances/{}/{}'.format(DATA_FOLDER, align, file),
-                                            sep='\t', header=None, index_col=None)
-
-                    for r_idx in range(CHUNK_SIZE * 2):
-                        for c_idx in range(CHUNK_SIZE * 2):
-                            if tmp_array[r_idx][c_idx] == '*':
-                                tmp_array[r_idx][c_idx] = 0
-                            else:
-                                tmp_array[r_idx][c_idx] = float(tmp_array[r_idx][c_idx])
-
                     # 1st step
                     values = np.ndarray([CHUNK_SIZE, CHUNK_SIZE])
 
@@ -210,18 +215,18 @@ def distances_chunks_concatenate():
                     # 2nd step
                     for r_idx in range(CHUNK_SIZE):
                         for c_idx in range(CHUNK_SIZE):
-                            final_array[r_idx + CHUNK_SIZE*r][c_idx + CHUNK_SIZE*c] = values[r_idx][c_idx]
+                            final_array[r_idx + CHUNK_SIZE * r][c_idx + CHUNK_SIZE * c] = values[r_idx][c_idx]
 
                     # 3d step
                     values = values.T
                     r, c = c, r
-                    
+
                     # 4th step
                     for r_idx in range(CHUNK_SIZE):
                         for c_idx in range(CHUNK_SIZE):
-                            final_array[r_idx + CHUNK_SIZE*r][c_idx + CHUNK_SIZE*c] = values[r_idx][c_idx]
+                            final_array[r_idx + CHUNK_SIZE * r][c_idx + CHUNK_SIZE * c] = values[r_idx][c_idx]
 
-            np.savetxt('{}/distances/{}_concatenated.tsv'.format(DATA_FOLDER, model), final_array,  delimiter='\t')
+            save_tsv('{}/distances/{}_{}_concatenated.tsv'.format(DATA_FOLDER, align, model), final_array)
 
 
 def dist_mp():
@@ -244,30 +249,25 @@ def dist_mp():
 
 
 def correlation():
+    """
+    Have to transform to 1-dim array/list to calculate correlation using numpy corrcoef method
+    """
     for align in alignments:
         for model_name in selected_models:
-            with open('correlation_{}.txt'.format(model_name), 'w') as out_file:
+            with open('{}/correlation_{}.txt'.format(DATA_FOLDER, model_name), 'w') as out_file:
+                evolution_distances = read_tsv('{}/distances/{}_{}_concatenated.tsv'
+                                               .format(DATA_FOLDER, align, model_name)).values.flatten()
 
-                # Get rid of * symbol after pycogent3's EstimateDistances() method call on main diagonal
-                # using list comprehensions and calculate correlation
+                cosine_sim = read_tsv('{}/cosine_similarities.tsv'.format(DATA_FOLDER)).values.flatten()
+                dist_euc = read_tsv('{}/distances_euc.tsv'.format(DATA_FOLDER)).values.flatten()
 
-                evolution_distances = pd.read_csv('{}/distances/{}/{}_concatenated.tsv'
-                                                                   .format(DATA_FOLDER, align, model_name),
-                                                  sep='\t', header=None, index_col=None).values.flatten()
+                correlations_sim = np.corrcoef(cosine_sim, evolution_distances)
+                correlations_euc = np.corrcoef(dist_euc, evolution_distances)
 
-                distances_euc = pd.read_csv('{}/distances_euc.tsv'.format(DATA_FOLDER),
-                                            sep='\t', header=None, index_col=None).values.flatten()
-                cosine_similarities = pd.read_csv('{}/cosine_similarities.tsv'.format(DATA_FOLDER),
-                                                  sep='\t', header=None, index_col=None).values.flatten()
-
-                correlations_sim = np.corrcoef(cosine_similarities, evolution_distances)
-                correlations_euc = np.corrcoef(distances_euc, evolution_distances)
-
-                out_file.write('cosine_similarities\evolution_distances\n')
-                out_file.write(str(correlations_sim))
-                out_file.write('\n\n\n')
-                out_file.write('distances_euc\evolution_distances\n')
-                out_file.write(str(correlations_euc))
+                out_file.write('cosine_similarities/evolution_distances\n' +
+                               str(correlations_sim) + '\n\n\n' +
+                               'distances_euc/evolution_distances\n' +
+                               str(correlations_euc))
 
 
 def main(args):
@@ -318,12 +318,9 @@ def parse_args():
         for model in args.models[0].split(','):
             if model.upper() in MODELS_NAMES:
                 selected_models.append(model)
-    else:
-        selected_models = MODELS_NAMES.copy()
 
     return args
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    main(args)
+    main(parse_args())
