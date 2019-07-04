@@ -5,7 +5,6 @@ from cogent3 import LoadSeqs
 import multiprocessing as mp
 import pandas as pd
 import numpy as np
-import itertools
 import argparse
 import os
 
@@ -24,6 +23,8 @@ alignments = ['mafft']
 
 DIM = 1066
 DATA_FOLDER = '1066_data'
+CHUNK_SIZE = 82
+CHUNK_NUM = DIM / CHUNK_SIZE
 
 
 def create_folder(folder_path):
@@ -66,12 +67,12 @@ def csv_to_fasta():
 def split_alignments():
     for align in alignments:
         records = list(SeqIO.parse('{}/all_genes_{}.fasta'.format(DATA_FOLDER, align), 'fasta'))
-        records_chunks = list(divide_chunks(records, 82))
+        records_chunks = list(divide_chunks(records, CHUNK_SIZE))
 
         create_folder('{}/chunks'.format(DATA_FOLDER))
 
-        for idx_r in range(13):
-            for idx_c in range(idx_r, 13):
+        for idx_r in range(CHUNK_NUM):
+            for idx_c in range(idx_r, CHUNK_NUM):
                 file_name = '{}/chunks/all_genes_{}_{}_{}.fasta'.format(DATA_FOLDER, align, idx_r, idx_c)
                 if idx_r != idx_c:
                     SeqIO.write(records_chunks[idx_r] + records_chunks[idx_c], file_name, 'fasta')
@@ -80,11 +81,13 @@ def split_alignments():
 
 
 def cosine_similarities(vectors):
-    similarities = np.zeros([DIM, DIM])
+    similarities = np.full([DIM, DIM], fill_value=1)
+
     for idx_r, row_a in vectors.iterrows():
         for idx_c, row_b in vectors.iterrows():
             if idx_r == idx_c:
                 continue
+
             similarities[idx_r][idx_c] = np.dot(row_a, row_b) / (np.linalg.norm(row_a) * np.linalg.norm(row_b))
 
     np.savetxt('{}/cosine_similarities.tsv'.format(DATA_FOLDER), similarities, delimiter='\t')
@@ -92,11 +95,14 @@ def cosine_similarities(vectors):
 
 def euclidean_distances(vectors):
     distances_euc = np.zeros([DIM, DIM])
+
     for idx_r, row_a in vectors.iterrows():
         for idx_c, row_b in vectors.iterrows():
             if idx_r == idx_c:
                 continue
+
             distances_euc[idx_r][idx_c] = np.sqrt(np.sum((row_a - row_b) ** 2))
+
     np.savetxt('{}/distances_euc.tsv'.format(DATA_FOLDER), distances_euc, delimiter='\t')
 
 
@@ -113,6 +119,20 @@ def cosine_and_euclidean_vectors_calculation():
     euc_proc.start()
     cos_proc.join()
     euc_proc.join()
+
+
+def format_array_after_dist_calc(path):
+    tmp_array = pd.read_csv(path, sep='\t', header=None, index_col=None)
+    final_array = np.zeros([CHUNK_SIZE, CHUNK_SIZE])
+
+    for r in range(CHUNK_SIZE):
+        for c in range(CHUNK_SIZE):
+            if tmp_array[r][c] == '*':
+                final_array[r][c] = 0
+            else:
+                final_array[r][c] = tmp_array[r][c]
+
+    return final_array
 
 
 def distances_chunks(align, model_name, idx_r, idx_c):
@@ -148,25 +168,60 @@ def distances_chunks_concatenate():
             files = sorted(files, key=get_r_index)
             files = sorted(files, key=get_c_index)
 
-            meta_array = list()
+            final_array = np.ndarray((DIM, DIM))
 
+            # Don't know how to write it simple using python\numpy methods
+            # Here we gonna C style
             for file in files:
-                if get_r_index(file) == get_c_index(file):
-                    meta_array.append(pd.read_csv('{}/distances/{}/{}'.format(DATA_FOLDER, align, file),
-                                                  header=None, sep='\t').to_numpy())
+
+                r = get_r_index(file)
+                c = get_c_index(file)
+
+                # If chunk on main diagonal just copy values
+                if r == c:
+                    tmp_array = format_array_after_dist_calc('{}/distances/{}/{}'
+                                                             .format(DATA_FOLDER, align, file))
+                    for r_idx in range(CHUNK_SIZE):
+                        for c_idx in range(CHUNK_SIZE):
+                            final_array[r_idx + CHUNK_SIZE*r][c_idx + CHUNK_SIZE*c] = tmp_array[r_idx][c_idx]
+
+                # 1) Extract values from 1 quarter
+                # 2) Place them using files idx
+                # 3) Transpose matrix\ndarray | swap r and c indexes
+                # 4) Place them using reverse idx
                 else:
-                    tmp_arr = pd.read_csv('{}/distances/{}/{}'.format(DATA_FOLDER, align, file),
-                                          header=None, sep='\t').to_numpy()
+                    tmp_array = pd.read_csv('{}/distances/{}/{}'.format(DATA_FOLDER, align, file),
+                                            sep='\t', header=None, index_col=None)
 
-                    final_arr = np.zeros([82, 82])
+                    for r_idx in range(CHUNK_SIZE * 2):
+                        for c_idx in range(CHUNK_SIZE * 2):
+                            if tmp_array[r_idx][c_idx] == '*':
+                                tmp_array[r_idx][c_idx] = 0
+                            else:
+                                tmp_array[r_idx][c_idx] = float(tmp_array[r_idx][c_idx])
 
-                    for r in range(82):
-                        for c in range(82):
-                            tmp_val = tmp_arr[r][c + 82]
-                            final_arr[r][c] = tmp_val
+                    # 1st step
+                    values = np.ndarray([CHUNK_SIZE, CHUNK_SIZE])
 
-                    meta_array.append(final_arr)
-            # TODO Concatenate arrays
+                    for r_idx in range(CHUNK_SIZE):
+                        for c_idx in range(CHUNK_SIZE):
+                            values[r_idx][c_idx] = tmp_array[r_idx][c_idx + CHUNK_SIZE]
+
+                    # 2nd step
+                    for r_idx in range(CHUNK_SIZE):
+                        for c_idx in range(CHUNK_SIZE):
+                            final_array[r_idx + CHUNK_SIZE*r][c_idx + CHUNK_SIZE*c] = values[r_idx][c_idx]
+
+                    # 3d step
+                    values = values.T
+                    r, c = c, r
+                    
+                    # 4th step
+                    for r_idx in range(CHUNK_SIZE):
+                        for c_idx in range(CHUNK_SIZE):
+                            final_array[r_idx + CHUNK_SIZE*r][c_idx + CHUNK_SIZE*c] = values[r_idx][c_idx]
+
+            np.savetxt('{}/distances/{}_concatenated.tsv'.format(DATA_FOLDER, model), final_array,  delimiter='\t')
 
 
 def dist_mp():
@@ -174,16 +229,17 @@ def dist_mp():
 
     pool = mp.Pool(mp.cpu_count())
 
-    # combs = list(itertools.product(alignments, selected_models, range(3), range(3)))
+    # Itertools?
     combs = []
     for align in alignments:
         for model in selected_models:
-            for idx_r in range(2):
-                for idx_c in range(idx_r, 2):
+            for idx_r in range(CHUNK_NUM):
+                for idx_c in range(idx_r, CHUNK_NUM):
                     combs.append((align, model, idx_r, idx_c,))
 
     pool.starmap_async(distances_chunks,
                        [(align, model_name, idx_r, idx_c) for align, model_name, idx_r, idx_c in combs]).get(99999)
+
     distances_chunks_concatenate()
 
 
@@ -191,25 +247,27 @@ def correlation():
     for align in alignments:
         for model_name in selected_models:
             with open('correlation_{}.txt'.format(model_name), 'w') as out_file:
+
                 # Get rid of * symbol after pycogent3's EstimateDistances() method call on main diagonal
                 # using list comprehensions and calculate correlation
-                evolution_distances = [0 if x == '*' else float(x) for x in pd.read_csv('{}/distances/{}/{}.tsv'
-                                                                                        .format(DATA_FOLDER,
-                                                                                                align,
-                                                                                                model_name),
-                                                                                        sep='\t', header=None,
-                                                                                        index_col=None).values.flatten()]
 
-                data_frame_distances_euc = pd.read_csv('{}/distances_euc.tsv'.format(DATA_FOLDER),
-                                                       sep='\t', header=None, index_col=None)
-                similarities = pd.read_csv('{}/similarities.tsv'.format(DATA_FOLDER),
-                                           sep='\t', header=None, index_col=None)
+                evolution_distances = pd.read_csv('{}/distances/{}/{}_concatenated.tsv'
+                                                                   .format(DATA_FOLDER, align, model_name),
+                                                  sep='\t', header=None, index_col=None).values.flatten()
 
-                correlations_euc = np.corrcoef(data_frame_distances_euc.values.flatten(), evolution_distances)
-                correlations_sim = np.corrcoef(similarities.values.flatten(), evolution_distances)
+                distances_euc = pd.read_csv('{}/distances_euc.tsv'.format(DATA_FOLDER),
+                                            sep='\t', header=None, index_col=None).values.flatten()
+                cosine_similarities = pd.read_csv('{}/cosine_similarities.tsv'.format(DATA_FOLDER),
+                                                  sep='\t', header=None, index_col=None).values.flatten()
 
-                out_file.write(str(correlations_euc))
+                correlations_sim = np.corrcoef(cosine_similarities, evolution_distances)
+                correlations_euc = np.corrcoef(distances_euc, evolution_distances)
+
+                out_file.write('cosine_similarities\evolution_distances\n')
                 out_file.write(str(correlations_sim))
+                out_file.write('\n\n\n')
+                out_file.write('distances_euc\evolution_distances\n')
+                out_file.write(str(correlations_euc))
 
 
 def main(args):
@@ -262,10 +320,10 @@ def parse_args():
                 selected_models.append(model)
     else:
         selected_models = MODELS_NAMES.copy()
+
     return args
 
 
 if __name__ == '__main__':
     args = parse_args()
-    distances_chunks_concatenate()
-    # main(args)
+    main(args)
