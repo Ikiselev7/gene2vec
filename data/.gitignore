@@ -1,3 +1,9 @@
 raw/
 
 /raw
+/dna2vec
+/dna2vec_models
+/ngrams_3_8
+/util_data
+/metric_ANI
+/fastANI_data
