@@ -1,0 +1,8 @@
+md5: 55bdaf4b7ea78728adcc1359faff268d
+wdir: ..
+outs:
+- md5: 42505afbbc7964d2032a9921594cc684.dir
+  path: data/fastANI_data
+  cache: true
+  metric: false
+  persist: false
