@@ -1,0 +1,8 @@
+md5: cc61ab2b3f6c6834ec113b34357bd257
+wdir: ..
+outs:
+- md5: 41a7c4cf83616d412b13dd8bbf7116f7.dir
+  path: data/ncbi_16S_genes
+  cache: true
+  metric: false
+  persist: false
